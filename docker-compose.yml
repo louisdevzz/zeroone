@@ -1,0 +1,85 @@
+services:
+  # ── Traefik Reverse Proxy ───────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.6
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      # Providers
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=zeroone-net
+      # Entry points
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      # Redirect HTTP → HTTPS
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      # Let's Encrypt (ACME via TLS challenge)
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      # Dashboard (internal only, no public exposure)
+      - --api.dashboard=true
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOCKER_API_VERSION=1.47
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-acme:/acme
+    networks:
+      - zeroone-net
+    labels:
+      - traefik.enable=true
+      # Traefik dashboard — accessible at https://traefik.${DOMAIN}
+      - traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)
+      - traefik.http.routers.traefik-dashboard.entrypoints=websecure
+      - traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt
+      - traefik.http.routers.traefik-dashboard.service=api@internal
+      - traefik.http.routers.traefik-dashboard.middlewares=traefik-auth
+      # Basic auth for dashboard (generate with: htpasswd -nb admin yourpassword)
+      - traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}
+
+  # ── Backend (Express API + Docker Orchestrator) ─────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: zeroone-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL:-}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY:-}
+      TRAEFIK_DOMAIN: ${DOMAIN}
+      DOCKER_NETWORK: zeroone-net
+      BACKEND_IN_DOCKER: "true"
+      DOCKER_SOCKET: /var/run/docker.sock
+      ZEROCLAW_IMAGE: ${ZEROCLAW_IMAGE:-zeroone/zeroclaw:latest}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - zeroone-net
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.backend.rule=Host(`api.${DOMAIN}`)
+      - traefik.http.routers.backend.entrypoints=websecure
+      - traefik.http.routers.backend.tls.certresolver=letsencrypt
+      - traefik.http.services.backend.loadbalancer.server.port=3001
+
+
+networks:
+  zeroone-net:
+    name: zeroone-net
+    driver: bridge
+
+volumes:
+  traefik-acme:
