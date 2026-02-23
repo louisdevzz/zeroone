@@ -72,7 +72,7 @@ No server setup. No Docker knowledge needed. No API key juggling.
 
 | | Free | Pro | Enterprise |
 |--|------|-----|-----------|
-| Agents | 3 | 20 | Unlimited |
+| Agents | 1 | 5 | Unlimited |
 | Channels (Telegram / Discord / Slack) | ✓ | ✓ | ✓ |
 | Memory | ✓ | ✓ | ✓ |
 | All AI providers | ✓ | ✓ | ✓ |
