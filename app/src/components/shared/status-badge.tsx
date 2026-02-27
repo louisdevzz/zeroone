@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { AgentStatus } from "@/lib/api";
+import type { AgentStatus } from "@/lib/api-client";
 
 const STATUS_CONFIG: Record<AgentStatus, { label: string; dot: string; text: string }> = {
   PENDING:  { label: "Pending",  dot: "bg-zinc-400",           text: "text-zinc-400" },

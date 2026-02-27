@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSession, clearSession, saveSession } from "@/lib/auth";
-import { api, type User } from "@/lib/api";
+import { api, type User } from "@/lib/api-client";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);

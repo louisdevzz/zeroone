@@ -2,7 +2,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import type { ChannelsInput } from "@/lib/api";
+import type { ChannelsInput } from "@/lib/api-client";
 import { MessageCircle, Hash, Slack } from "lucide-react";
 
 const CHANNELS = [
