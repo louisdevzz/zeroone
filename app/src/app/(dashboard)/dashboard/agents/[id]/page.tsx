@@ -1,18 +1,19 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { api, type Agent } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { useApi, type Agent } from "@/lib/api-client";
 import {
   ArrowLeft, Bot, Copy, ExternalLink,
   Loader2, Pencil, Play, RotateCcw, Send, Square, Zap, RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AgentDetailSkeleton } from "@/components/dashboard/skeletons";
 
 interface Message {
   role: "user" | "assistant";
@@ -22,6 +23,8 @@ interface Message {
 export default function AgentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const api = useApi();
+
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -37,42 +40,37 @@ export default function AgentDetailPage() {
 
   const [tokenLoading, setTokenLoading] = useState(false);
 
-  useEffect(() => { fetchAgent(); }, [id]);
-
-  useEffect(() => {
-    const TRANSIENT = ["PENDING", "STARTING", "STOPPING"];
-    if (!agent || !TRANSIENT.includes(agent.status)) return;
-    const timer = setInterval(async () => {
-      const session = getSession();
-      if (!session) return;
-      try { setAgent(await api.agents.get(session.token, id)); } catch { }
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [agent?.status, id]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  async function fetchAgent() {
-    const session = getSession();
-    if (!session) return;
+  const fetchAgent = useCallback(async () => {
     try {
-      setAgent(await api.agents.get(session.token, id));
+      const data = await api.agents.get(id);
+      setAgent(data);
     } catch {
       toast.error("Agent not found");
       router.push("/dashboard/agents");
     } finally {
       setLoading(false);
     }
-  }
+  }, [api, id, router]);
+
+  useEffect(() => { fetchAgent(); }, [fetchAgent]);
+
+  useEffect(() => {
+    const TRANSIENT = ["PENDING", "STARTING", "STOPPING"];
+    if (!agent || !TRANSIENT.includes(agent.status)) return;
+    const timer = setInterval(async () => {
+      try { setAgent(await api.agents.get(id)); } catch { }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [agent?.status, id, api]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   async function control(action: "start" | "stop" | "restart") {
-    const session = getSession();
-    if (!session) return;
     setActionLoading(true);
     try {
-      await api.agents.control(session.token, id, action);
+      await api.agents.control(id, action);
       toast.success(`Agent ${action}ed`);
       setTimeout(fetchAgent, 2000);
     } catch {
@@ -83,14 +81,13 @@ export default function AgentDetailPage() {
   }
 
   async function sendMessage() {
-    const session = getSession();
-    if (!session || !input.trim() || !agent) return;
+    if (!input.trim() || !agent) return;
     const text = input.trim();
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setChatLoading(true);
     try {
-      const res = await api.agents.message(session.token, id, text);
+      const res = await api.agents.message(id, text);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: res.response ?? res.message ?? JSON.stringify(res) },
@@ -104,11 +101,9 @@ export default function AgentDetailPage() {
   }
 
   async function loadLogs() {
-    const session = getSession();
-    if (!session) return;
     setLogsLoading(true);
     try {
-      const data = await api.agents.logs(session.token, id);
+      const data = await api.agents.logs(id);
       const lines = Array.isArray(data.logs) ? data.logs : [];
       setLogs(lines);
       setTimeout(() => logsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -121,11 +116,9 @@ export default function AgentDetailPage() {
 
   async function openDashboard() {
     if (!dashboardUrl) return;
-    const session = getSession();
-    if (!session) return;
     setTokenLoading(true);
     try {
-      const data = await api.agents.dashboardToken(session.token, id);
+      const data = await api.agents.dashboardToken(id);
       window.open(`${dashboardUrl}?token=${encodeURIComponent(data.token)}`, "_blank");
     } catch {
       toast.error("Failed to get dashboard token");
@@ -144,11 +137,7 @@ export default function AgentDetailPage() {
     : null;
 
   if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Zap className="h-6 w-6 animate-pulse text-primary" />
-      </div>
-    );
+    return <AgentDetailSkeleton />;
   }
 
   if (!agent) return null;

@@ -1,16 +1,16 @@
 /**
- * Test script — chạy trước khi test qua website.
+ * Test script — run before testing via website.
  * Usage: pnpm test:agent [--skip-pull]
  *
- * Tests từng bước:
+ * Step-by-step tests:
  *   1. Docker daemon reachable
- *   2. Pull ZeroClaw image (nếu chưa có)
- *   3. Tạo network zeroone-net
+ *   2. Pull ZeroClaw image (if not exists)
+ *   3. Create network zeroone-net
  *   4. Start container
- *   5. Đọc pairing code từ logs
+ *   5. Read pairing code from logs
  *   6. POST /pair → bearer token
  *   7. GET /health
- *   8. POST /webhook (gửi message)
+ *   8. POST /webhook (send message)
  *   9. Cleanup container
  */
 

@@ -64,6 +64,17 @@ services:
       DOCKER_SOCKET: /var/run/docker.sock
       ZEROCLAW_IMAGE: ${ZEROCLAW_IMAGE:-zeroone/zeroclaw:latest}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      FRONTEND_URL: ${FRONTEND_URL:-https://${DOMAIN}}
+      # Stripe Payments (Credit Cards + Bank Transfer)
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_ID_PRO_MONTHLY: ${STRIPE_PRICE_ID_PRO_MONTHLY:-}
+      STRIPE_PRICE_ID_PRO_YEARLY: ${STRIPE_PRICE_ID_PRO_YEARLY:-}
+      STRIPE_PRICE_ID_BUSINESS_MONTHLY: ${STRIPE_PRICE_ID_BUSINESS_MONTHLY:-}
+      STRIPE_PRICE_ID_BUSINESS_YEARLY: ${STRIPE_PRICE_ID_BUSINESS_YEARLY:-}
+      # Coinbase Commerce (Cryptocurrency Payments)
+      COINBASE_COMMERCE_API_KEY: ${COINBASE_COMMERCE_API_KEY:-}
+      COINBASE_COMMERCE_WEBHOOK_SECRET: ${COINBASE_COMMERCE_WEBHOOK_SECRET:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:

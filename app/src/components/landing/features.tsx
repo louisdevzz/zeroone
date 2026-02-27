@@ -6,9 +6,9 @@ import { Zap, Container, Globe, Lock, Activity, Layers } from "lucide-react";
 const features = [
   {
     icon: Zap,
-    title: "~5MB RAM per agent",
+    title: "Lightweight Rust runtime",
     description:
-      "ZeroClaw is a Rust-native AI runtime. Each agent container idles at just ~5MB of RAM — run hundreds of agents on a single VPS without breaking the bank.",
+      "ZeroClaw is a Rust-native AI runtime built for efficiency. Each agent container starts in under 10ms — run hundreds of agents on a single VPS without breaking the bank.",
   },
   {
     icon: Container,

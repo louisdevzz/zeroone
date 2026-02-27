@@ -83,7 +83,7 @@ No server setup. No Docker knowledge needed. No API key juggling.
 
 ## Powered by ZeroClaw
 
-Each agent runs on [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) — an open-source agent runtime built in Rust. It uses ~5MB RAM per instance and starts in under 10ms, which means ZeroOne can run many agents on a single server without the infrastructure cost ballooning.
+Each agent runs on [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) — an open-source agent runtime built in Rust. It starts in under 10ms and is optimized for efficiency, which means ZeroOne can run many agents on a single server without the infrastructure cost ballooning.
 
 ---
 

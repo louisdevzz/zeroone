@@ -1,16 +1,15 @@
 "use client";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Bot, Settings, LogOut, Zap } from "lucide-react";
+import { LayoutDashboard, Bot, Settings, LogOut, Zap, CreditCard } from "lucide-react";
+import { useUser, useClerk } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
-import { clearSession, getSession } from "@/lib/auth";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import type { User } from "@/lib/api";
 
 const navItems = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard, exact: true },
   { label: "Agents", href: "/dashboard/agents", icon: Bot },
+  { label: "Billing", href: "/dashboard/billing", icon: CreditCard },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -22,17 +21,16 @@ const PLAN_BADGE = {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const { user } = useUser();
+  const { signOut } = useClerk();
 
-  useEffect(() => {
-    const session = getSession();
-    if (session) setUser(session.user);
-  }, []);
+  // Get user plan from public metadata (set during webhook)
+  const userPlan = (user?.publicMetadata?.plan as "FREE" | "PRO" | "ENTERPRISE") ?? "FREE";
+  const userName = user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "User";
+  const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
 
   function handleLogout() {
-    clearSession();
-    router.push("/login");
+    signOut({ redirectUrl: "/login" });
   }
 
   return (
@@ -85,17 +83,17 @@ export function Sidebar() {
 
       {/* Plan badge */}
       {user && (() => {
-        const badge = PLAN_BADGE[user.plan];
+        const badge = PLAN_BADGE[userPlan];
         return (
           <div className="relative px-3 pb-2">
-            <Link href="/dashboard/settings" className="group flex items-center justify-between rounded-lg border px-3 py-2 transition-all hover:bg-white/5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+            <Link href="/dashboard/billing" className="group flex items-center justify-between rounded-lg border px-3 py-2 transition-all hover:bg-white/5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
               <div className="min-w-0">
-                <p className="truncate text-xs text-muted-foreground">{user.name ?? user.email}</p>
+                <p className="truncate text-xs text-muted-foreground">{userName}</p>
                 <span className={cn("mt-0.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold", badge.className)}>
                   {badge.label}
                 </span>
               </div>
-              {user.plan === "FREE" && (
+              {userPlan === "FREE" && (
                 <Zap className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
               )}
             </Link>

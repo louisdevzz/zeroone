@@ -9,6 +9,9 @@ const ZEROCLAW_IMAGE = process.env.ZEROCLAW_IMAGE ?? "ghcr.io/louisdevzz/zerocla
 const TRAEFIK_DOMAIN = process.env.TRAEFIK_DOMAIN ?? "zeroonec.xyz";
 const NETWORK_NAME = process.env.DOCKER_NETWORK ?? "zeroone-net";
 
+// ModelArk API key for Quick Start - uses system-provided API key
+const MODELARK_API_KEY = process.env.MODELARK_API_KEY ?? "";
+
 // IS_DOCKER: true when the backend itself runs inside a Docker container on the same network
 // as the agents (production). Use BACKEND_IN_DOCKER=true to opt-in explicitly.
 // Defaults to false so local dev (backend on host, agents in Docker) always uses 127.0.0.1.
@@ -58,12 +61,15 @@ export async function createAgentContainer(opts: CreateContainerOptions): Promis
   const memoryBytes = parseMem(opts.memoryLimit ?? "128m");
   const nanoCpus = Math.round((opts.cpuQuota ?? 0.5) * 1e9);
 
+  // Use ModelArk API key for ark provider, otherwise use provided apiKey
+  const apiKey = opts.provider === "ark" ? MODELARK_API_KEY : opts.apiKey;
+
   const container = await docker.createContainer({
     name: containerName,
     Image: ZEROCLAW_IMAGE,
     Cmd: ["daemon"],
     Env: [
-      `API_KEY=${opts.apiKey}`,
+      `API_KEY=${apiKey}`,
       `PROVIDER=${opts.provider}`,
       `ZEROCLAW_MODEL=${opts.model}`,
       `ZEROCLAW_ALLOW_PUBLIC_BIND=true`,
@@ -134,6 +140,7 @@ export interface WorkspaceContext {
   memoryBackend: string;
   autoSave: boolean;
   channels?: ChannelsContext;
+  providerUrl?: string; // for compatible / custom OpenAI-compatible endpoints
 }
 
 /**
@@ -211,6 +218,7 @@ export async function initWorkspace(
   // Correct section: [channels_config.telegram] (not [channels.telegram])
   const tomlLines = [
     `default_temperature = 0.7`,
+    ...(ctx.providerUrl ? [`api_url = "${ctx.providerUrl}"`] : []),
     ``,
     `[memory]`,
     `backend = "${ctx.memoryBackend}"`,

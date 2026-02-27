@@ -16,7 +16,6 @@ Port: 42617
 ```
 
 Each instance:
-- Consumes ~5MB base RAM (Rust binary)
 - Exposes a secure HTTP Gateway API on port 42617
 - Requires a one-time pairing handshake before accepting messages
 - Stores memory in SQLite (default) or Markdown files
@@ -269,11 +268,11 @@ createContainer({
 
 ### Resource Defaults by Plan
 
-| Plan | Memory | CPU Quota | Max Agents |
-|------|--------|-----------|------------|
-| Free | 128MB | 0.5 | 3 |
-| Pro | 256MB | 1.0 | 20 |
-| Enterprise | Custom | Custom | Unlimited |
+| Plan | CPU Quota | Max Agents |
+|------|-----------|------------|
+| Free | 0.5 | 3 |
+| Pro | 1.0 | 20 |
+| Enterprise | Custom | Unlimited |
 
 ---
 

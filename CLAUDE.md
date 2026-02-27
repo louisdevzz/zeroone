@@ -8,7 +8,7 @@
 
 **ZeroOne** is a ZeroClaw-as-a-Service (ZCaaS) platform. Users deploy and manage [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) AI agent instances through a web dashboard.
 
-**ZeroClaw is a Rust binary** — ~5MB RAM, ~8.8MB binary, sub-10ms startup — not a framework you build on top of. ZeroOne wraps its Docker deployment model with a multi-tenant management layer.
+**ZeroClaw is a Rust binary** — ~8.8MB binary, sub-10ms startup — not a framework you build on top of. ZeroOne wraps its Docker deployment model with a multi-tenant management layer.
 
 **Brand color:** `#BA4811` (orange)
 

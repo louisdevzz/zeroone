@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
@@ -17,7 +18,7 @@ const geistMono = Geist_Mono({
 const BASE_URL = "https://zeroonec.xyz";
 const TITLE = "ZeroOne — Deploy AI Agents in One Click";
 const DESCRIPTION =
-  "ZeroOne runs ZeroClaw AI agents inside isolated Docker containers. Each instance uses only ~5MB RAM — run hundreds of agents";
+  "ZeroOne runs ZeroClaw AI agents inside isolated Docker containers. Built with Rust for maximum efficiency — run hundreds of agents";
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -73,14 +74,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-      >
-        {children}
-        <Toaster position="bottom-right" />
-        <Analytics />
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" className="dark">
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        >
+          {children}
+          <Toaster position="bottom-right" />
+          <Analytics />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

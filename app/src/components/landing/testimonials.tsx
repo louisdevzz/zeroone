@@ -38,7 +38,7 @@ const row2 = [
   {
     avatar: "KL",
     handle: "@kayleeliu",
-    text: "The ~5MB RAM per agent claim sounded too good to be true. Ran 20 agents on a $6/mo VPS. It's real.",
+    text: "Ran 20 agents on a $6/mo VPS without any issues. The efficiency is incredible.",
   },
   {
     avatar: "TM",

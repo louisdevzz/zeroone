@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Zap, Shield, Cpu } from "lucide-react";
 
 const stats = [
-  { value: "~5MB", label: "RAM per agent" },
   { value: "<10ms", label: "Cold start" },
   { value: "15+", label: "LLM providers" },
-  { value: "100×", label: "Less memory" },
+  { value: "Rust", label: "Powered by" },
+  { value: "100%", label: "Open source" },
 ];
 
 export function Hero() {
@@ -52,8 +52,8 @@ export function Hero() {
 
         <p className="max-w-2xl text-base text-muted-foreground sm:text-lg">
           ZeroOne runs ZeroClaw AI agents inside isolated Docker containers.
-          Each instance uses only <strong className="text-foreground">~5MB RAM</strong> —
-          so you can run hundreds of agents.
+          Built with Rust for maximum efficiency — run hundreds of agents
+          on a single VPS.
         </p>
 
         {/* CTA buttons */}
@@ -83,6 +83,19 @@ export function Hero() {
           <Shield className="h-3.5 w-3.5 text-green-400" />
           Free plan · No credit card required · Self-hostable
         </p>
+
+        {/* Quick Start banner */}
+        <div className="mt-2 flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/6 px-5 py-3">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/15">
+            <Zap className="h-4 w-4 text-primary" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold text-foreground">Quick Start — No API key required</p>
+            <p className="text-xs text-muted-foreground">
+              Built-in ModelArk provider · 100 messages/day included · Upgrade anytime
+            </p>
+          </div>
+        </div>
       </motion.div>
 
       {/* Stats row */}

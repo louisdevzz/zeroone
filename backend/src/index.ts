@@ -2,8 +2,9 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 
-import authRouter from "./routes/auth";
 import agentsRouter from "./routes/agents";
+import webhooksRouter from "./routes/webhooks";
+import paymentsRouter from "./routes/payments";
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? "3001");
@@ -23,7 +24,15 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json({ limit: "1mb" }));
+
+// JSON parser - skip for webhooks (they need raw body)
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/webhooks") || req.path === "/api/payments/webhook") {
+    next();
+  } else {
+    express.json({ limit: "1mb" })(req, res, next);
+  }
+});
 
 // ── Routes ─────────────────────────────────────────────────────
 
@@ -31,8 +40,9 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", version: "0.1.0" });
 });
 
-app.use("/api/auth", authRouter);
 app.use("/api/agents", agentsRouter);
+app.use("/api/webhooks", webhooksRouter);
+app.use("/api/payments", paymentsRouter);
 
 // ── 404 ────────────────────────────────────────────────────────
 

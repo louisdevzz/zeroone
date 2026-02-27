@@ -21,6 +21,7 @@ import {
   type WorkspaceContext,
 } from "../services/docker.service";
 import { pairAgent, sendMessage, checkHealth } from "../services/zeroclaw.service";
+import { sendAgentCreatedEmail } from "../services/resend.service";
 import { PLAN_LIMITS } from "../types";
 
 const router = Router();
@@ -58,9 +59,10 @@ const channelsSchema = z.object({
 
 const createSchema = z.object({
   name: z.string().min(1).max(50),
-  provider: z.string().default("openrouter"),
-  model: z.string().default("anthropic/claude-sonnet-4-6"),
+  provider: z.string().default("ark"),
+  model: z.string().default("deepseek-v3-2-251201"),
   apiKey: z.string().optional(),
+  providerUrl: z.string().url().optional(), // for compatible / custom provider
   // ZeroClaw identity
   agentName: z.string().min(1).max(50).default("ZeroClaw"),
   userName: z.string().max(50).optional(),
@@ -220,20 +222,29 @@ router.post("/", async (req: AuthRequest, res) => {
   }
 
   const {
-    name, provider, model, apiKey,
+    name, provider, model, apiKey, providerUrl,
     agentName, userName, timezone, communicationStyle,
     memoryBackend, autoSave, channels,
   } = parsed.data;
 
-  // Ollama doesn't need an API key; other providers do
-  const needsKey = provider !== "ollama";
+  // compatible (custom) provider doesn't require an API key
+  // ark (ModelArk) also doesn't require an API key but needs a URL
+  const needsKey = provider !== "compatible" && provider !== "ark";
   if (needsKey && !apiKey?.trim()) {
     res.status(400).json({ success: false, error: "LLM API key is required for this provider" });
+    return;
+  }
+  if ((provider === "compatible" || provider === "ark") && !providerUrl?.trim()) {
+    res.status(400).json({ success: false, error: "Provider URL is required for this provider" });
     return;
   }
 
   const slug = await generateUniqueSlug(name);
   const subdomain = `${slug}.${process.env.TRAEFIK_DOMAIN ?? "zeroonec.xyz"}`;
+
+  // Don't store system API keys in DB - only store user-provided keys
+  // For ark (ModelArk), we use the system API key from environment
+  const userProvidedApiKey = provider !== "ark" && apiKey?.trim() ? apiKey : null;
 
   // Create DB record first
   const [agent] = await db
@@ -252,7 +263,8 @@ router.post("/", async (req: AuthRequest, res) => {
       autoSave: String(autoSave),
       status: "PENDING",
       subdomain,
-      encryptedApiKey: apiKey ? encrypt(apiKey) : null,
+      providerUrl: providerUrl ?? null,
+      encryptedApiKey: userProvidedApiKey ? encrypt(userProvidedApiKey) : null,
       encryptedChannels: channels ? encrypt(JSON.stringify(channels)) : null,
     })
     .returning();
@@ -282,7 +294,8 @@ router.post("/", async (req: AuthRequest, res) => {
             "Be warm, natural, and clear. Adapt to the situation.",
           memoryBackend,
           autoSave,
-          channels: channels ?? undefined,
+          ...(channels ? { channels } : {}),
+          ...(providerUrl ? { providerUrl } : {}),
         }
       );
 
@@ -296,6 +309,23 @@ router.post("/", async (req: AuthRequest, res) => {
       }).where(eq(agents.id, agent.id));
 
       console.log(`[agent] ${slug} deployed — container ${containerId} port ${hostPort}`);
+
+      // Send email notification
+      const [user] = await db
+        .select({ email: users.email, name: users.name })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (user) {
+        await sendAgentCreatedEmail(user.email, user.name ?? "User", {
+          name: agent.name,
+          slug: agent.slug,
+          provider: agent.provider,
+          model: agent.model,
+          subdomain: agent.subdomain!,
+        });
+      }
     } catch (err) {
       console.error(`[agent] Deploy failed for ${slug}:`, err);
       await db.update(agents).set({ status: "ERROR", updatedAt: new Date() }).where(eq(agents.id, agent.id));
@@ -363,7 +393,7 @@ router.patch("/:id", async (req: AuthRequest, res) => {
             ?? "Be warm, natural, and clear. Adapt to the situation.",
           memoryBackend: memoryBackend ?? agent.memoryBackend,
           autoSave: autoSave !== undefined ? autoSave : agent.autoSave === "true",
-          channels: channels ?? undefined,
+          ...(channels ? { channels } : {}),
         };
 
         await db.update(agents).set({ status: "STARTING", updatedAt: new Date() }).where(eq(agents.id, agent.id));

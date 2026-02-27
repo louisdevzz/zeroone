@@ -1,13 +1,13 @@
 "use client";
+
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { api, type ChannelsInput } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { useApi, type ChannelsInput } from "@/lib/api-client";
 import { ArrowLeft, Loader2, Zap, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChannelsForm } from "@/components/dashboard/channels-form";
@@ -16,52 +16,273 @@ import { ChannelsForm } from "@/components/dashboard/channels-form";
 
 const PROVIDERS = [
   {
+    id: "ark",
+    name: "ModelArk",
+    description: "DeepSeek V3 - No API key required",
+    models: ["deepseek-v3-2-251201"],
+    requiresKey: false,
+    requiresUrl: true,
+    defaultUrl: "https://ark.ap-southeast.bytepluses.com/api/v3/chat/completions",
+  },
+  {
     id: "openrouter",
     name: "OpenRouter",
-    description: "200+ models, 1 API key (recommended)",
-    models: ["openai/gpt-4o", "anthropic/claude-sonnet-4-6", "google/gemini-2.0-flash"],
+    description: "200+ models, 1 API key",
+    models: [
+      "anthropic/claude-sonnet-4-6",
+      "anthropic/claude-opus-4-6",
+      "openai/gpt-4o",
+      "openai/gpt-4.1",
+      "openai/o3",
+      "google/gemini-2.5-pro",
+      "google/gemini-2.0-flash",
+      "deepseek/deepseek-chat",
+      "deepseek/deepseek-r1",
+      "x-ai/grok-3",
+      "meta-llama/llama-3.3-70b-instruct",
+      "qwen/qwen-2.5-72b-instruct",
+    ],
+    requiresKey: true,
+    requiresUrl: false,
   },
   {
     id: "openai",
     name: "OpenAI",
-    description: "GPT-4o, o1, GPT-4 Turbo",
-    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "gpt-3.5-turbo"],
+    description: "GPT-4o, GPT-4.1, o3",
+    models: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "o1", "o1-mini", "o3", "o3-mini", "gpt-4-turbo"],
+    requiresKey: true,
+    requiresUrl: false,
   },
   {
     id: "anthropic",
     name: "Anthropic",
-    description: "Claude Sonnet & Opus",
-    models: ["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001"],
+    description: "Claude 3.5/4 Sonnet & Opus",
+    models: [
+      "claude-sonnet-4-6",
+      "claude-opus-4-6",
+      "claude-haiku-4-5-20251001",
+      "claude-3-5-sonnet-20241022",
+      "claude-3-5-haiku-20241022",
+      "claude-3-opus-20240229",
+    ],
+    requiresKey: true,
+    requiresUrl: false,
   },
   {
     id: "gemini",
-    name: "Google Gemini",
-    description: "Gemini 2.0 Flash & Pro",
-    models: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+    name: "Google",
+    description: "Gemini 2.5 Pro/Flash",
+    models: [
+      "gemini-2.5-pro",
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-2.0-flash-lite",
+      "gemini-1.5-pro",
+      "gemini-1.5-flash",
+    ],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "deepseek",
+    name: "DeepSeek",
+    description: "DeepSeek V3 & R1",
+    models: ["deepseek-chat", "deepseek-reasoner"],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "xai",
+    name: "xAI",
+    description: "Grok 3 & 4",
+    models: ["grok-3", "grok-3-fast", "grok-3-mini", "grok-3-mini-fast", "grok-2-1212"],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "mistral",
+    name: "Mistral",
+    description: "Mistral Large & Codestral",
+    models: [
+      "mistral-large-latest",
+      "mistral-small-latest",
+      "codestral-latest",
+      "magistral-small-2506",
+      "magistral-medium-2506",
+      "mistral-nemo-latest",
+    ],
+    requiresKey: true,
+    requiresUrl: false,
   },
   {
     id: "groq",
     name: "Groq",
     description: "Ultra-fast LPU inference",
-    models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+    models: [
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+      "mixtral-8x7b-32768",
+      "gemma2-9b-it",
+      "qwen-qwq-32b",
+    ],
+    requiresKey: true,
+    requiresUrl: false,
   },
   {
-    id: "deepseek",
-    name: "DeepSeek",
-    description: "V3 & R1 (affordable)",
-    models: ["deepseek-chat", "deepseek-reasoner"],
+    id: "perplexity",
+    name: "Perplexity",
+    description: "Search-augmented AI",
+    models: ["sonar-pro", "sonar", "sonar-reasoning-pro", "sonar-reasoning", "sonar-deep-research"],
+    requiresKey: true,
+    requiresUrl: false,
   },
   {
-    id: "mistral",
-    name: "Mistral AI",
-    description: "Large & Codestral",
-    models: ["mistral-large-latest", "mistral-small-latest", "codestral-latest"],
+    id: "venice",
+    name: "Venice",
+    description: "Privacy-first inference",
+    models: ["llama-3.3-70b", "mistral-31-24b", "qwen-2.5-vl-72b"],
+    requiresKey: true,
+    requiresUrl: false,
   },
   {
-    id: "ollama",
-    name: "Ollama",
-    description: "Local models, no API key needed",
-    models: ["llama3.2", "llama3.1", "mistral", "codellama", "phi3"],
+    id: "vercel",
+    name: "Vercel AI",
+    description: "Vercel AI Gateway",
+    models: ["gpt-4o", "claude-sonnet-4-6", "gemini-2.0-flash"],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "cloudflare",
+    name: "Cloudflare AI",
+    description: "Cloudflare AI Gateway",
+    models: [
+      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "@cf/meta/llama-3.1-8b-instruct-fast",
+      "@cf/google/gemma-7b-it",
+      "@hf/mistral/mistral-7b-instruct-v0.2",
+    ],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "moonshot",
+    name: "Moonshot",
+    description: "Kimi & Kimi Coding",
+    models: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k", "kimi-latest", "kimi-thinking-preview"],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "glm",
+    name: "GLM",
+    description: "ChatGLM / Zhipu models",
+    models: ["glm-4-plus", "glm-4-0520", "glm-4-air", "glm-4-flash", "glm-z1-preview"],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "qwen",
+    name: "Qwen",
+    description: "Alibaba DashScope",
+    models: [
+      "qwen-max",
+      "qwen-plus",
+      "qwen-turbo",
+      "qwen2.5-72b-instruct",
+      "qwen2.5-32b-instruct",
+      "qwq-32b",
+    ],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "bedrock",
+    name: "Amazon Bedrock",
+    description: "AWS managed model access",
+    models: [
+      "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "anthropic.claude-3-haiku-20240307-v1:0",
+      "meta.llama3-70b-instruct-v1:0",
+      "amazon.titan-text-premier-v1:0",
+    ],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "together",
+    name: "Together AI",
+    description: "Open-source model hosting",
+    models: [
+      "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+      "meta-llama/Llama-3.1-8B-Instruct-Turbo",
+      "mistralai/Mixtral-8x7B-Instruct-v0.1",
+      "Qwen/Qwen2.5-72B-Instruct-Turbo",
+      "deepseek-ai/DeepSeek-R1",
+    ],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "fireworks",
+    name: "Fireworks AI",
+    description: "Fast open-source inference",
+    models: [
+      "accounts/fireworks/models/llama-v3p3-70b-instruct",
+      "accounts/fireworks/models/mixtral-8x7b-instruct",
+      "accounts/fireworks/models/qwen2p5-72b-instruct",
+      "accounts/fireworks/models/deepseek-r1",
+    ],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "cohere",
+    name: "Cohere",
+    description: "Command R+ & embeddings",
+    models: ["command-r-plus-08-2024", "command-r-08-2024", "command-a-03-2025", "command-light"],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "zai",
+    name: "Z.AI",
+    description: "Z.AI inference",
+    models: ["glm-4-plus", "glm-4-air", "glm-4-flash"],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "minimax",
+    name: "MiniMax",
+    description: "MiniMax AI models",
+    models: ["abab6.5s-chat", "abab6.5g-chat", "abab5.5s-chat", "abab6.5-chat"],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "qianfan",
+    name: "Qianfan",
+    description: "Baidu AI models",
+    models: ["ernie-4.0-turbo-8k", "ernie-4.0-8k", "ernie-3.5-8k", "ernie-lite-8k"],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "synthetic",
+    name: "Synthetic",
+    description: "Synthetic AI models",
+    models: ["synthetic-1"],
+    requiresKey: true,
+    requiresUrl: false,
+  },
+  {
+    id: "compatible",
+    name: "Custom Model",
+    description: "Any OpenAI-compatible endpoint",
+    models: [],
+    requiresKey: false,  // API key is optional for custom endpoints
+    requiresUrl: true,   // Base URL is required
   },
 ];
 
@@ -114,20 +335,28 @@ const STEPS = ["Provider", "Identity", "Memory", "Channels", "Review"];
 
 export default function NewAgentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const api = useApi();
 
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  // Keep a stable ref to api so effects don't re-run when api object identity changes
+  const apiRef = useRef(api);
+  apiRef.current = api;
 
   // Step 0 — Provider
   const [provider, setProvider] = useState(PROVIDERS[0]);
   const [model, setModel] = useState(PROVIDERS[0].models[0]);
   const [apiKey, setApiKey] = useState("");
+  const [apiUrl, setApiUrl] = useState("");
   const [customModel, setCustomModel] = useState("");
 
   // Step 1 — Identity
   const [agentName, setAgentName] = useState("ZeroClaw");
   const [nameError, setNameError] = useState<string | null>(null);
   const [nameChecking, setNameChecking] = useState(false);
+  const [nameTouched, setNameTouched] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [userName, setUserName] = useState("");
   const [timezone, setTimezone] = useState("UTC");
@@ -140,21 +369,40 @@ export default function NewAgentPage() {
   // Step 3 — Channels
   const [channels, setChannels] = useState<ChannelsInput>({});
 
-  // Debounced API check for duplicate name
+  // Handle provider query parameter from URL (e.g., ?provider=ark)
   useEffect(() => {
+    const providerParam = searchParams.get("provider");
+    if (providerParam) {
+      const foundProvider = PROVIDERS.find((p) => p.id === providerParam);
+      if (foundProvider) {
+        setProvider(foundProvider);
+        setModel(foundProvider.models[0] ?? "__custom__");
+        if (foundProvider.defaultUrl) {
+          setApiUrl(foundProvider.defaultUrl);
+        }
+      }
+    }
+  }, [searchParams]);
+
+  // Debounced name check — only fires after the user has touched the input
+  useEffect(() => {
+    if (!nameTouched) return;
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const trimmed = agentName.trim();
-    if (!trimmed) { setNameError(null); setNameChecking(false); return; }
+
+    if (!agentName.trim()) {
+      setNameError(null);
+      setNameChecking(false);
+      return;
+    }
 
     setNameChecking(true);
     setNameError(null);
 
     debounceRef.current = setTimeout(async () => {
-      const session = getSession();
-      if (!session) { setNameChecking(false); return; }
       try {
-        const { available } = await api.agents.checkName(session.token, trimmed);
-        setNameError(available ? null : `An agent named "${trimmed}" already exists.`);
+        const { available } = await apiRef.current.agents.checkName(agentName.trim());
+        setNameError(available ? null : `An agent named "${agentName.trim()}" already exists.`);
       } catch {
         setNameError(null); // fail open — backend will catch on deploy
       } finally {
@@ -163,23 +411,31 @@ export default function NewAgentPage() {
     }, 400);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [agentName]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentName, nameTouched]);
 
   // Derived
-  const finalModel = model === "__custom__" ? customModel.trim() : model;
-  const needsApiKey = provider.id !== "ollama";
+  const isCustomProvider = provider.requiresUrl;
+  const finalModel = (model === "__custom__" || isCustomProvider) ? customModel.trim() : model;
+  const needsApiKey = provider.requiresKey;
+  const needsApiUrl = provider.requiresUrl;
 
   function handleProviderChange(id: string) {
     const p = PROVIDERS.find((p) => p.id === id) ?? PROVIDERS[0];
     setProvider(p);
-    setModel(p.models[0]);
+    setModel(p.models[0] ?? "__custom__");
     setCustomModel("");
+    // Auto-fill URL for providers with default URL
+    if (p.defaultUrl) {
+      setApiUrl(p.defaultUrl);
+    }
   }
 
   // Step guards
   function canGoNext() {
     if (step === 0) {
       if (needsApiKey && !apiKey.trim()) return false;
+      if (needsApiUrl && !apiUrl.trim()) return false;
       if (!finalModel) return false;
       return true;
     }
@@ -188,15 +444,14 @@ export default function NewAgentPage() {
   }
 
   async function handleDeploy() {
-    const session = getSession();
-    if (!session) return;
     setLoading(true);
     try {
-      const agent = await api.agents.create(session.token, {
+      const agent = await api.agents.create({
         name: agentName,
         provider: provider.id,
         model: finalModel,
-        apiKey: needsApiKey ? apiKey : undefined,
+        apiKey: needsApiKey ? apiKey : (apiKey.trim() || undefined),
+        providerUrl: needsApiUrl ? apiUrl.trim() : undefined,
         agentName,
         userName: userName || undefined,
         timezone,
@@ -283,30 +538,63 @@ export default function NewAgentPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="model">Model</Label>
-              <select
-                id="model"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="w-full rounded-md border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
-              >
-                {provider.models.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-                <option value="__custom__">Custom model name…</option>
-              </select>
-              {model === "__custom__" && (
+            {/* Custom provider URL */}
+            {needsApiUrl && (
+              <div className="space-y-2">
+                <Label htmlFor="apiurl">Provider URL <span className="text-red-400">*</span></Label>
                 <Input
-                  placeholder="e.g. llama3.2, gpt-4o, mistral-large"
-                  value={customModel}
-                  onChange={(e) => setCustomModel(e.target.value)}
+                  id="apiurl"
+                  type="url"
+                  placeholder="http://localhost:11434"
+                  value={apiUrl}
+                  onChange={(e) => setApiUrl(e.target.value)}
                   className="bg-white/4 border-white/10 font-mono"
                   autoFocus
                 />
+                <p className="text-xs text-muted-foreground">
+                  Base URL of your OpenAI-compatible endpoint (e.g. Ollama, LM Studio, LocalAI, vLLM).
+                </p>
+              </div>
+            )}
+
+            {/* Model selector */}
+            <div className="space-y-2">
+              <Label htmlFor="model">Model</Label>
+              {isCustomProvider ? (
+                <Input
+                  id="model"
+                  placeholder="e.g. llama3.2, mistral, qwen2.5:7b"
+                  value={customModel}
+                  onChange={(e) => setCustomModel(e.target.value)}
+                  className="bg-white/4 border-white/10 font-mono"
+                />
+              ) : (
+                <>
+                  <select
+                    id="model"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    className="w-full rounded-md border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  >
+                    {provider.models.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                    <option value="__custom__">Custom model name…</option>
+                  </select>
+                  {model === "__custom__" && (
+                    <Input
+                      placeholder="e.g. my-fine-tuned-model"
+                      value={customModel}
+                      onChange={(e) => setCustomModel(e.target.value)}
+                      className="bg-white/4 border-white/10 font-mono"
+                      autoFocus
+                    />
+                  )}
+                </>
               )}
             </div>
 
+            {/* API Key */}
             {needsApiKey && (
               <div className="space-y-2">
                 <Label htmlFor="apikey">API Key</Label>
@@ -321,6 +609,21 @@ export default function NewAgentPage() {
                 <p className="text-xs text-muted-foreground">
                   Encrypted with AES-256-GCM at rest. Never logged or exposed.
                 </p>
+              </div>
+            )}
+
+            {/* Custom provider: optional API key */}
+            {isCustomProvider && (
+              <div className="space-y-2">
+                <Label htmlFor="apikey">API Key <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Input
+                  id="apikey"
+                  type="password"
+                  placeholder="sk-... (leave blank if not required)"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="bg-white/4 border-white/10 font-mono"
+                />
               </div>
             )}
 
@@ -350,7 +653,7 @@ export default function NewAgentPage() {
                   id="agentname"
                   placeholder="ZeroClaw"
                   value={agentName}
-                  onChange={(e) => setAgentName(e.target.value)}
+                  onChange={(e) => { setNameTouched(true); setAgentName(e.target.value); }}
                   className={cn(
                     "bg-white/4 border-white/10",
                     nameError && "border-red-500/60 focus-visible:ring-red-500/40"
@@ -533,7 +836,8 @@ export default function NewAgentPage() {
             <div className="rounded-xl border border-white/8 bg-white/4 divide-y divide-white/8 text-sm">
               {[
                 { label: "Provider", value: `${provider.name} / ${finalModel}` },
-                { label: "API Key", value: needsApiKey ? (apiKey ? "••••••••" : "Not set") : "Not required" },
+                ...(needsApiUrl ? [{ label: "Provider URL", value: apiUrl || "—" }] : []),
+                { label: "API Key", value: needsApiKey ? (apiKey ? "••••••••" : "Not set") : (apiKey ? "••••••••" : "Not required") },
                 { label: "Agent name", value: agentName },
                 { label: "User name", value: userName || "—" },
                 { label: "Timezone", value: timezone },

@@ -1,25 +1,29 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { api, type Agent } from "@/lib/api";
-import { getSession } from "@/lib/auth";
-import { Plus, Bot, Activity, Cpu, Zap, ArrowRight } from "lucide-react";
+import { useApi, type Agent } from "@/lib/api-client";
+import { Plus, Bot, Activity, Cpu, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { DashboardSkeleton } from "@/components/dashboard/skeletons";
 
 export default function DashboardPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
+  const api = useApi();
 
   useEffect(() => {
-    const session = getSession();
-    if (!session) return;
-    api.agents.list(session.token)
+    api.agents.list()
       .then(setAgents)
       .catch(() => toast.error("Failed to load agents"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [api]);
+
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
 
   const running = agents.filter((a) => a.status === "RUNNING").length;
   const total = agents.length;
@@ -27,7 +31,7 @@ export default function DashboardPage() {
   const stats = [
     { label: "Total agents", value: total, icon: Bot, color: "text-primary", bg: "bg-primary/10" },
     { label: "Running", value: running, icon: Activity, color: "text-green-400", bg: "bg-green-400/10" },
-    { label: "RAM / agent", value: "~5MB", icon: Cpu, color: "text-sky-400", bg: "bg-sky-400/10" },
+    { label: "Avg CPU", value: "<5%", icon: Cpu, color: "text-sky-400", bg: "bg-sky-400/10" },
   ];
 
   return (
@@ -84,11 +88,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Zap className="h-5 w-5 animate-pulse text-primary" />
-          </div>
-        ) : agents.length === 0 ? (
+        {agents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/8 bg-white/4">
               <Bot className="h-7 w-7 text-muted-foreground/40" />

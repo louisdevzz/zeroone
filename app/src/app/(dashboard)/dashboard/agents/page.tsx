@@ -1,11 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { api, type Agent } from "@/lib/api";
-import { getSession } from "@/lib/auth";
-import { Plus, Bot, Zap, MoreHorizontal, Play, Square, RotateCcw, Trash2, ArrowRight, AlertTriangle, Loader2 } from "lucide-react";
+import { useApi, type Agent } from "@/lib/api-client";
+import { Plus, Bot, MoreHorizontal, Play, Square, RotateCcw, Trash2, ArrowRight, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -22,6 +22,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { AgentsListSkeleton } from "@/components/dashboard/skeletons";
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -29,10 +30,22 @@ export default function AgentsPage() {
   const [actionId, setActionId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Agent | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const api = useApi();
+
+  const refresh = useCallback(async () => {
+    try {
+      const data = await api.agents.list();
+      setAgents(data);
+    } catch {
+      toast.error("Failed to load agents");
+    } finally {
+      setLoading(false);
+    }
+  }, [api]);
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
   // Poll while any agent is in a transient state
   useEffect(() => {
@@ -42,27 +55,12 @@ export default function AgentsPage() {
 
     const timer = setInterval(refresh, 3000);
     return () => clearInterval(timer);
-  }, [agents]);
-
-  async function refresh() {
-    const session = getSession();
-    if (!session) return;
-    try {
-      const data = await api.agents.list(session.token);
-      setAgents(data);
-    } catch {
-      toast.error("Failed to load agents");
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [agents, refresh]);
 
   async function control(id: string, action: "start" | "stop" | "restart") {
-    const session = getSession();
-    if (!session) return;
     setActionId(id);
     try {
-      await api.agents.control(session.token, id, action);
+      await api.agents.control(id, action);
       toast.success(`Agent ${action}ed`);
       setTimeout(refresh, 1500);
     } catch {
@@ -74,11 +72,9 @@ export default function AgentsPage() {
 
   async function confirmDelete() {
     if (!deleteTarget) return;
-    const session = getSession();
-    if (!session) return;
     setDeleting(true);
     try {
-      await api.agents.delete(session.token, deleteTarget.id);
+      await api.agents.delete(deleteTarget.id);
       setAgents((prev) => prev.filter((a) => a.id !== deleteTarget.id));
       toast.success("Agent deleted");
       setDeleteTarget(null);
@@ -111,9 +107,7 @@ export default function AgentsPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <Zap className="h-6 w-6 animate-pulse text-primary" />
-        </div>
+        <AgentsListSkeleton />
       ) : agents.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-white/8 bg-white/3 py-24 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/8 bg-white/4">

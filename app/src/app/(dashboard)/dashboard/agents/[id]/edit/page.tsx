@@ -1,16 +1,17 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { api, type Agent, type ChannelsInput } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { useApi, type Agent, type ChannelsInput } from "@/lib/api-client";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChannelsForm } from "@/components/dashboard/channels-form";
+import { AgentDetailSkeleton } from "@/components/dashboard/skeletons";
 
 const COMM_STYLES = [
   {
@@ -49,6 +50,7 @@ const MEMORY_BACKENDS = [
 export default function EditAgentPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const api = useApi();
 
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,40 +66,37 @@ export default function EditAgentPage() {
   const [autoSave, setAutoSave] = useState(true);
   const [channels, setChannels] = useState<ChannelsInput>({});
 
-  useEffect(() => {
-    async function load() {
-      const session = getSession();
-      if (!session) return;
-      try {
-        const data = await api.agents.get(session.token, id);
-        setAgent(data);
-        setName(data.name);
-        setAgentName(data.agentName ?? "ZeroClaw");
-        setUserName(data.userName ?? "");
-        setTimezone(data.timezone ?? "UTC");
-        const matchedStyle = COMM_STYLES.find((s) => s.value === data.communicationStyle);
-        setCommStyle(matchedStyle ?? COMM_STYLES[4]);
-        const matchedBackend = MEMORY_BACKENDS.find((b) => b.id === data.memoryBackend);
-        setMemoryBackend(matchedBackend ?? MEMORY_BACKENDS[0]);
-        setAutoSave(data.autoSave === "true" || data.autoSave === null);
-        if (data.channels) setChannels(data.channels);
-      } catch {
-        toast.error("Agent not found");
-        router.push("/dashboard/agents");
-      } finally {
-        setLoading(false);
-      }
+  const loadAgent = useCallback(async () => {
+    try {
+      const data = await api.agents.get(id);
+      setAgent(data);
+      setName(data.name);
+      setAgentName(data.agentName ?? "ZeroClaw");
+      setUserName(data.userName ?? "");
+      setTimezone(data.timezone ?? "UTC");
+      const matchedStyle = COMM_STYLES.find((s) => s.value === data.communicationStyle);
+      setCommStyle(matchedStyle ?? COMM_STYLES[4]);
+      const matchedBackend = MEMORY_BACKENDS.find((b) => b.id === data.memoryBackend);
+      setMemoryBackend(matchedBackend ?? MEMORY_BACKENDS[0]);
+      setAutoSave(data.autoSave === "true" || data.autoSave === null);
+      if (data.channels) setChannels(data.channels);
+    } catch {
+      toast.error("Agent not found");
+      router.push("/dashboard/agents");
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, [id]);
+  }, [api, id, router]);
+
+  useEffect(() => {
+    loadAgent();
+  }, [loadAgent]);
 
   async function handleSave() {
-    const session = getSession();
-    if (!session) return;
     setSaving(true);
     const hasChannels = Object.keys(channels).length > 0;
     try {
-      await api.agents.update(session.token, id, {
+      await api.agents.update(id, {
         name,
         agentName,
         userName: userName || undefined,
@@ -123,11 +122,7 @@ export default function EditAgentPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
+    return <AgentDetailSkeleton />;
   }
 
   if (!agent) return null;

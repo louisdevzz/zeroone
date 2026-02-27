@@ -35,7 +35,7 @@ const jsonLd = {
       operatingSystem: "Linux, Docker",
       url: "https://zeroonec.xyz",
       description:
-        "ZeroClaw-as-a-Service platform. Deploy and manage ZeroClaw AI agent instances with ~5MB RAM each inside isolated Docker containers.",
+        "ZeroClaw-as-a-Service platform. Deploy and manage ZeroClaw AI agent instances inside isolated Docker containers.",
       offers: [
         {
           "@type": "Offer",
